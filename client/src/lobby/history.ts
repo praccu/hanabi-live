@@ -19,6 +19,8 @@ const tooltipOptions: JQueryTooltipster.ITooltipsterOptions = {
   theme: ["tooltipster-shadow", "tooltipster-shadow-big"],
 };
 
+const histogramMaxHeight = 100;
+
 export function init(): void {
   $("#lobby-history-show-more").on("click", () => {
     globals.showMoreHistoryClicked = true;
@@ -116,6 +118,23 @@ export function draw(friends: boolean): void {
   // so we must specify an ascending sort
   ids.sort((a, b) => a - b);
   ids.reverse();
+  
+  let firstGameData;
+  if (!friends) {
+    firstGameData = globals.history[ids[0]];
+  } else {
+    firstGameData = globals.historyFriends[ids[0]];
+  }
+  
+  const firstVariant = getVariant(firstGameData.options.variantName);
+  const { maxScore } = firstVariant;
+  
+  // A given seed appears to be associated with only one variant...?
+  let scoreCounts: number[];
+  scoreCounts.length = maxScore;
+  
+  let lowestScore = scoreCounts.length - 1;
+  let highestScore = 0;
 
   // Add all of the history
   for (let i = 0; i < ids.length; i++) {
@@ -125,8 +144,10 @@ export function draw(friends: boolean): void {
     } else {
       gameData = globals.historyFriends[ids[i]];
     }
-    const variant = getVariant(gameData.options.variantName);
-    const { maxScore } = variant;
+
+    scoreCounts[gameData.score] += 1;
+    if (gameData.score > highestScore) { highestScore = gamedata.Score; }
+    if (gameData.score < lowestScore) { lowestScore = gamedata.Score; }
 
     const row = $("<tr>");
 
@@ -186,6 +207,28 @@ export function draw(friends: boolean): void {
     // (this has to be done after adding the HTML to the page)
     $(`#lobby-history-table-${i}-options`).tooltipster(tooltipOptions);
   }
+  
+  const totalGames = ids.length;
+  let scorePixels = number[];
+  scorePixels.length = scoreCounts.length;
+  
+  let mostFrequentScoreCount = Math.max(scoreCounts);
+  
+  const histogram = $(`#score-histogram`);
+  
+  for (let i = 0; i < scoreCounts.length; i++) {
+    // The goal is for the most frequent score to have height histogramMaxHeight.
+    // This function calculates what fraction of games had this score, and then 
+    let scorePixels = 
+      // % of games that had this score
+      (scoreCounts[i] / totalGames) 
+      // ratio of this score to the most frequent score (i.e., the tallest bucket)
+      * (scoreCounts[i] / mostFrequentScoreCount) 
+      * histogramMaxHeight;
+    
+    $("<li>").html(i).addClass("histogram-bucket").attr("height: " + scorePixels + "px").appendTo(histogram);
+  }
+  
 
   // Don't show the "Show More History" if we have 10 or less games played
   if (globals.totalGames <= 10) {
